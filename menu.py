@@ -4,6 +4,7 @@ class Menu:
     def __init__(self, bot):
         self.bot = bot
         self.yesNoKeyboard()
+        self.NoKeyboard()
         self.productServiceKeyboard()
         self.productsKeyboard()
         self.servicesKeyboard()
@@ -29,11 +30,16 @@ class Menu:
         self.bot.send_message(message.chat.id, "Пожалуйста, отправьте ваш номер телефона", reply_markup=markup)
 
     def yesNoKeyboard(self):
-        self.YNKeyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        self.YNKeyboard = self.YNKeyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
         item1 = types.KeyboardButton(text='Да')
         item2 = types.KeyboardButton(text='Нет')
         self.YNKeyboard.add(item1)
         self.YNKeyboard.add(item2)
+
+    def NoKeyboard(self):
+        self.NKeyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        item1 = types.KeyboardButton(text='Нет')
+        self.NKeyboard.add(item1)
 
     def productServiceKeyboard(self):
         self.PSKeyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)

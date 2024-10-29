@@ -14,6 +14,8 @@ class db:
         if entry is None:
             self.cursor.execute("INSERT INTO phoneNumbers (userID, username, phoneNumber) VALUES (?, ?, ?)", (userID, username, phoneNumber))
             self.connection.commit()
+        self.cursor.execute('SELECT * FROM phoneNumbers ORDER BY id DESC LIMIT 1;')
+        print(self.cursor.fetchone())
 
     def requestDb(self, name, email, phone, client, choice, pack, send, sendDate, wishes):
         cursor = self.connection.execute('SELECT * FROM Users WHERE (name=? AND email=? AND phone=? AND client=? AND choice=? AND pack=? AND send=? AND sendDate=? AND wishes=?)', (name, email, phone, client, choice, pack, send, sendDate, wishes))
@@ -22,11 +24,8 @@ class db:
             self.cursor.execute('INSERT INTO Users (name, email, phone, client, choice, pack, send, sendDate, wishes) VALUES (?,?,?,?,?,?,?,?,?)', (name, email, phone, client, choice, pack, send, sendDate, wishes))
             self.connection.commit()
 
-        self.cursor.execute('SELECT * FROM Users')
-        users = self.cursor.fetchall()
-
-        for i in users:
-            print(i)
+        self.cursor.execute('SELECT * FROM Users ORDER BY id DESC LIMIT 1;')
+        print(self.cursor.fetchone())         
 
         self.connection.commit()
     def __del__(self):

@@ -183,7 +183,7 @@ class Requests:
             self.usrSendDate = " "
             self.Main.handleRequestWishes(message, True)
             return
-        self.bot.send_message(message.chat.id, "Вы можете ввести пожелания или комментарии")
+        self.bot.send_message(message.chat.id, "Вы можете ввести пожелания или комментарии", reply_markup=self.menu.NKeyboard)
         self.bot.register_next_step_handler(message, self.Main.handleRequestWishes, save)
 
     def productsCategories(self, message, save):
@@ -239,7 +239,7 @@ class Requests:
             if save == True:
                 self.Main.handleRequestWishes(message, True)
                 return
-            self.bot.send_message(message.chat.id, "Вы можете ввести пожелания или комментарии")
+            self.bot.send_message(message.chat.id, "Вы можете ввести пожелания или комментарии", reply_markup=self.menu.NKeyboard)
             self.bot.register_next_step_handler(message, self.Main.handleRequestWishes)
         else:
             self.bot.send_message(message.chat.id, "Неправильный формат ответа!")
@@ -273,13 +273,16 @@ class Requests:
         if save == True:
             self.Main.handleRequestWishes(message, True)
             return
-        self.bot.send_message(message.chat.id, "Вы можете ввести пожелания или комментарии")
+        self.bot.send_message(message.chat.id, "Вы можете ввести пожелания или комментарии", reply_markup=self.menu.NKeyboard)
         self.bot.register_next_step_handler(message, self.Main.handleRequestWishes, False)
 
     def saveWishes(self, message, saving):
         if saving == False:
             if message.content_type == 'text':
-                self.usrWishes = message.text
+                if message.text.lower() != "нет":
+                    self.usrWishes = message.text
+                else:
+                    self.usrWishes = ""
             else:
                 self.usrWishes = ""
         if self.usrName == " " or self.usrEmail == " " or self.usrPhone == " ":
@@ -302,6 +305,15 @@ class Requests:
             self.db.requestDb(self.usrName, self.usrEmail, self.usrPhone, self.usrClient, self.usrChoice, self.usrNeedPack, self.usrSendToPlace, self.usrSendDate, self.usrWishes)
             self.bot.send_message(message.chat.id, "Заявка успешно сохранена! Благодарим за сотрудничество!")
             self.bot.send_message(self.chatID, f"Новая заявка от пользователя {message.from_user.first_name}")
+            self.usrEmail = " "
+            self.usrPhone = " "
+            self.usrName = " "
+            self.usrClient = " "
+            self.usrChoice = " "
+            self.usrNeedPack = " "
+            self.usrSendToPlace = " "
+            self.usrSendDate = " "
+            self.usrWishes = " "
             self.Main.users[str(message.from_user.username)][0] = False
             self.menu.showMainMenu(message)
         elif message.text.lower() == "нет":
