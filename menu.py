@@ -22,6 +22,15 @@ class Menu:
 
         self.bot.send_message(message.chat.id, "Выберите одну из опций:", reply_markup=keyboard)
 
+    def showAdminMenu(self, message):
+        keyboard = types.InlineKeyboardMarkup()
+        item1 = types.InlineKeyboardButton(text='Заявки', callback_data='check_request')
+        item2 = types.InlineKeyboardButton(text='Заказы звонка', callback_data='check_call')
+        keyboard.add(item1)
+        keyboard.add(item2)
+
+        self.bot.send_message(message.chat.id, "Выберите одну из опций:", reply_markup=keyboard)
+
     def phoneKeyboard(self, message):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         item = types.KeyboardButton('Отправить номер телефона', request_contact=True)

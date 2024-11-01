@@ -302,7 +302,7 @@ class Requests:
             self.bot.register_next_step_handler(message, self.Main.handleRequestConfirmation)
             return
         if message.text.lower() == "да":
-            self.db.requestDb(self.usrName, self.usrEmail, self.usrPhone, self.usrClient, self.usrChoice, self.usrNeedPack, self.usrSendToPlace, self.usrSendDate, self.usrWishes)
+            self.db.requestDb(self.usrName, self.usrEmail, self.usrPhone, self.usrClient, self.usrChoice, self.usrNeedPack, self.usrSendToPlace, self.usrSendDate, self.usrWishes, 'не обработана')
             self.bot.send_message(message.chat.id, "Заявка успешно сохранена! Благодарим за сотрудничество!")
             self.bot.send_message(self.chatID, f"Новая заявка от пользователя {message.from_user.first_name}")
             self.usrEmail = " "

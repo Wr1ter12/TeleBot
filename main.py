@@ -12,12 +12,12 @@ bot = telebot.TeleBot('7621236265:AAGs2_RbavfCZxKYQP2mLtiEYVTrcgzqNOk')
 
 db = sql.db('TDM.db')
 
-messages = Messages(bot)
 menu = Menu(bot)
 orderCall = CallOrder(bot, db, menu, chatID)
 
 class Main:
     users = {}
+    employees = ['vladronik']
 
     def userAdd(userID):
         userID = str(userID)
@@ -38,7 +38,7 @@ class Main:
                 return func(message, save)
         return wrapper
     
-    @bot.message_handler(commands=['start', 'info', 'help', 'request', 'stop'])
+    @bot.message_handler(commands=['start', 'info', 'help', 'request', 'stop', 'admin'])
     def commands(message):
         Main.userAdd(message.from_user.username)
         match message.text.lower():
@@ -56,6 +56,8 @@ class Main:
             case "/stop":
                 Main.users[str(message.from_user.username)][0] = False
                 menu.showMainMenu(message)
+            case "/admin":
+                messages.admin(message)
             case _:
                 print("[log] Неизвестная команда")
 
@@ -197,6 +199,86 @@ class Main:
             messages.info(call.message)
             Main.userAdd(call.message.from_user.username)
             menu.showMainMenu(call.message)
+            
+        elif call.data == 'check_request':
+            requests = db.getNpRequests()
+            l = len(requests)
+            if l < 1:
+                bot.send_message(call.message.chat.id, "Нет свободных заявок")
+                menu.showAdminMenu(call.message)
+                return
+            for i in range(l):
+                bot.send_message(call.message.chat.id, "ID: " + str(requests[i][0]) + "\n" + "Имя: " + str(requests[i][1]) + "\n" + "Телефон: " + str(requests[i][3]) + "\n" + "Почта: " + str(requests[i][2]) + "\n" + "Тема: " + str(requests[i][4]) + "\n" + "Статус: " + str(requests[i][5]))
+            bot.send_message(call.message.chat.id, "Введите ID заявки для обработки:")
+            def ProcessRequest(message):
+                if message.content_type != 'text':
+                    menu.showAdminMenu(message)
+                    return
+                req = message.text
+                def FinishRequest(message, id):
+                    if message.content_type != 'text':
+                        db.cancelProcessRequest(id)
+                        bot.send_message(message.chat.id, "Обработка успешно отменена!")
+                        menu.showAdminMenu(message)
+                        return
+                    if message.text.lower() == "нет":
+                        db.cancelProcessRequest(id)
+                        bot.send_message(message.chat.id, "Обработка успешно отменена!")
+                        menu.showAdminMenu(message)
+                        return
+                    db.setFinishedRequest(id)
+                    bot.send_message(message.chat.id, "Заявка успешно обработана!")
+                    menu.showAdminMenu(message)
+                for i in requests:
+                    if req == str(i[0]):
+                        db.setProcessRequest(message.text, message.from_user.username)
+                        bot.send_message(message.chat.id, "Отправьте любое сообщение по завершению обработки (Нет - для отмены обработки):", reply_markup=menu.YNKeyboard)
+                        bot.register_next_step_handler(message, FinishRequest, req)
+                        return
+                bot.send_message(message.chat.id, "Нет такого свободного ID")
+                menu.showAdminMenu(message)
+                
+            bot.register_next_step_handler(call.message, ProcessRequest)
+            
+
+        elif call.data == 'check_call':
+            calls = db.getNpCalls()
+            l = len(calls)
+            if l < 1:
+                bot.send_message(call.message.chat.id, "Нет свободных заказов")
+                menu.showAdminMenu(call.message)
+                return
+            for i in range(l):
+                bot.send_message(call.message.chat.id, "ID: " + str(calls[i][0]) + "\n" + "Имя: " + str(calls[i][1]) + "\n" + "Телефон: " + str(calls[i][2]) + "\n" + "Статус: " + str(calls[i][3]))
+            bot.send_message(call.message.chat.id, "Введите ID заказа для обработки:")
+            def ProcessCall(message):
+                if message.content_type != 'text':
+                    menu.showAdminMenu(message)
+                    return
+                call = message.text
+                def FinishCall(message, id):
+                    if message.content_type != 'text':
+                        db.cancelProcessCall(id)
+                        bot.send_message(message.chat.id, "Обработка успешно отменена!")
+                        menu.showAdminMenu(message)
+                        return
+                    if message.text.lower() == "нет":
+                        db.cancelProcessCall(id)
+                        bot.send_message(message.chat.id, "Обработка успешно отменена!")
+                        menu.showAdminMenu(message)
+                        return
+                    db.setFinishedCall(id)
+                    bot.send_message(message.chat.id, "Заказ успешно обработан!")
+                    menu.showAdminMenu(message)
+                for i in calls:
+                    if call == str(i[0]):
+                        db.setProcessCall(message.text, message.from_user.username)
+                        bot.send_message(message.chat.id, "Отправьте любое сообщение по завершению обработки (Нет - для отмены обработки):", reply_markup=menu.YNKeyboard)
+                        bot.register_next_step_handler(message, FinishCall, call)
+                        return
+                bot.send_message(message.chat.id, "Нет такого свободного ID")
+                menu.showAdminMenu(message)
+            bot.register_next_step_handler(call.message, ProcessCall)
 
     @bot.message_handler(content_types = ['text'])
     def messaging(message):
@@ -216,7 +298,8 @@ class Main:
                 else:
                     messages.usr_msg(message)
         menu.showMainMenu(message)
-        
+
+messages = Messages(bot, menu, Main)      
 request = Requests(bot, db, menu, Main, chatID)
 
 if __name__ == '__main__':
