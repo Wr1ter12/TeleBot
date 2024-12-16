@@ -5,36 +5,43 @@ from request import Requests
 from messages import Messages
 from orderCall import CallOrder
 from menu import Menu
-from os import getcwd, mkdir, path
 
-token = ''
+chatID = -1002332920843
 
-if not path.isdir('ДокументыПользователей'):
-    mkdir("ДокументыПользователей")
-    if not path.isdir('ДокументыПользователей//photos'):
-        mkdir("ДокументыПользователей//photos")
-
-bot = telebot.TeleBot(token)
+bot = telebot.TeleBot('7621236265:AAGs2_RbavfCZxKYQP2mLtiEYVTrcgzqNOk')
 
 db = sql.db('TDM.db')
 
-messages = Messages(bot)
 menu = Menu(bot)
-orderCall = CallOrder(bot, db, menu)
+orderCall = CallOrder(bot, db, menu, chatID)
 
 class Main:
     users = {}
-    currentDir = getcwd()
+    employees = ['vladronik']
 
     def userAdd(userID):
         userID = str(userID)
-        if userID not in Main.users.keys():
+        if userID not in list(Main.users.keys()):
             Main.users[userID] = [False, False]
+
+    def stopCheck(func):
+        def wrapper(message, save=None):
+            if message.text == "/stop":
+                Main.userAdd(message.from_user.username)
+                Main.users[str(message.from_user.username)][0] = False
+                bot.send_message(message.chat.id, "Оформление заявки успешно отменено!")
+                menu.showMainMenu(message)
+                return
+            if save == None:
+                return func(message)
+            else:
+                return func(message, save)
+        return wrapper
     
-    @bot.message_handler(commands=['start', 'info', 'help', 'request'])
+    @bot.message_handler(commands=['start', 'info', 'help', 'request', 'stop', 'admin'])
     def commands(message):
         Main.userAdd(message.from_user.username)
-        match message.text:
+        match message.text.lower():
             case "/start":
                 messages.start(message)
                 menu.showMainMenu(message)
@@ -46,54 +53,109 @@ class Main:
                 menu.showMainMenu(message)
             case "/request":
                 Main.handleRequest(message)
+            case "/stop":
+                Main.users[str(message.from_user.username)][0] = False
+                menu.showMainMenu(message)
+            case "/admin":
+                messages.admin(message)
             case _:
                 print("[log] Неизвестная команда")
 
     @bot.message_handler(func=lambda message: message.text.lower() == 'оставить заявку')
-    def handleRequest(message):
+    def handleRequest(message, save):
         Main.userAdd(message.from_user.username)
         Main.users[str(message.from_user.username)][0] = True
         msg = request.request(message)
-        bot.register_next_step_handler(msg, request.userName)
+        bot.register_next_step_handler(msg, request.userName, save)
 
-    def handleRequestSec(message):
-        msg = request.userPhoneNumber(message)
+    @stopCheck
+    def handleRequestSec(message, save=False):
+        msg = request.userPhoneNumber(message, save)
 
-    @bot.message_handler(func=lambda message: '@' in message.text.lower())
-    def handleRequestThr(message):
-        request.userEmail(message)
+    @bot.message_handler(func=lambda message: match(r'^[\w\.\+\-]+\@[\w]+\.[a-z]{2,3}$', message.text))
+    @stopCheck
+    def handleRequestThr(message, save=False):
+        request.userEmail(message, save)
 
-    @bot.message_handler(func=lambda message: message.text.lower() == "Да" or message.text.lower() == "Нет" )
-    def handleRequestForth(message):
-        request.intProd(message)
+    @stopCheck
+    def handleRequestForth(message, save=False):
+        request.intProd(message, save)
 
-    @bot.message_handler(func=lambda message: message.text.lower() == "продукция" or message.text.lower() == "услуга")
-    def handleRequestFifth(message):
-        request.productsSelection(message)
+    @stopCheck
+    def handleRequestFifth(message, save=False):
+        request.productsSelection(message, save)
 
-    def handleRequestTypeOfServices(message):
-        request.typeOfServices(message)
+    @stopCheck
+    def handleRequestTypeOfServices(message, save=False):
+        request.typeOfServices(message, save)
 
-    def handleRequestProductsCategories(message):
-        request.productsCategories(message)
+    @stopCheck
+    def handleRequestProductsCategories(message, save=False):
+        request.productsCategories(message, save)
 
-    def handleRequestNeedPacking(message):
-        request.needPacking(message)
+    @stopCheck
+    def handleRequestNeedPacking(message, save=False):
+        request.needPacking(message, save)
 
-    def handleRequestNeedSend(message):
-        request.needSend(message)
+    @stopCheck
+    def handleRequestNeedSend(message, save=False):
+        request.needSend(message, save)
 
-    def handleRequestSendAddress(message):
-        request.sendAddress(message)
-    
-    def handleRequestSendDate(message):
-        request.sendDate(message)
+    @stopCheck
+    def handleRequestSendAddress(message, save=False):
+        request.sendAddress(message, False)
 
-    def handleRequestSendToObj(message):
-        request.saveFile(message)
+    @stopCheck
+    def handleRequestSendDate(message, save=False):
+        request.sendDate(message, False)
 
-    def handleRequestWishes(message):
-        request.saveWishes(message)
+    @stopCheck
+    def handleRequestWishes(message, save=False):
+        request.saveWishes(message, save)
+        
+    def handleRequestConfirmation(message):
+        request.saveRequest(message)
+
+    def handleRequestModification(message):
+        if message.content_type != 'text':
+            bot.send_message(message.chat.id, "Неправильный формат ответа!")
+            if request.usrNeedPack == " ":
+                bot.send_message(message.chat.id, "Введите номер поля для изменения:", reply_markup=menu.rsKeyboard)
+                bot.register_next_step_handler(message, Main.handleRequestSendDate)
+            else:
+                    bot.send_message(message.chat.id, "Введите номер поля для изменения:", reply_markup=menu.rpsKeyboard)
+            return
+        match message.text.lower():
+            case "имя":
+                msg = bot.reply_to(message, "Введите ваше имя.")
+                bot.register_next_step_handler(msg, request.userName, True)
+            case "телефон":
+                Main.handleOrderCall(message)
+                bot.register_next_step_handler(message, Main.handleRequestSec, True)
+            case "почта":
+                msg = bot.reply_to(message, "Введите ваш адрес электронной почты.")
+                bot.register_next_step_handler(msg, Main.handleRequestThr, True)
+            case "клиент":
+                msg = bot.reply_to(message, "Являетесь ли вы нашим клиентом? (Да/Нет)", reply_markup=menu.YNKeyboard)
+                bot.register_next_step_handler(msg, Main.handleRequestForth, True)
+            case "категория":
+                msg = bot.reply_to(message, "Что вас интересует: продукция или услуга?", reply_markup=menu.PSKeyboard)
+                bot.register_next_step_handler(msg, Main.handleRequestFifth, True)
+            case "упаковка":
+                bot.send_message(message.chat.id, "Нужна ли упаковка? (Да/Нет)", reply_markup=menu.YNKeyboard)
+                bot.register_next_step_handler(message, Main.handleRequestNeedPacking, True)
+            case "адрес доставки":
+                bot.send_message(message.chat.id, "Введите адрес доставки:")
+                bot.register_next_step_handler(message, Main.handleRequestSendAddress, True)
+            case "дата доставки":
+                bot.send_message(message.chat.id, "Введите дату доставки:")
+                bot.register_next_step_handler(message, Main.handleRequestSendDate, True)
+            case "комментарии":
+                bot.send_message(message.chat.id, "Вы можете ввести пожелания или комментарии")
+                bot.register_next_step_handler(message, Main.handleRequestWishes, False)
+            case _:
+                bot.send_message(message.chat.id, "Некорректный ввод!")
+                request.saveWishes(message, True)
 
     @bot.message_handler(func=lambda message: message.text.lower() == 'заказать звонок')
     def handleOrderCall(message):
@@ -101,9 +163,10 @@ class Main:
         Main.users[str(message.from_user.username)][1] = True
         orderCall.handleOrderCall(message)
 
-    @bot.message_handler(func=lambda message: match(r'^\+?[1-9]\d{1,14}$', message.text) and len(message.text)>=7 and len(message.text)<=15)
+    @bot.message_handler(func=lambda message: match(r'^\+?[1-9]\d{1,14}$', message.text) and len(message.text)>=11 and len(message.text)<=12)
     def handleManualPhoneNumber(message):
         Main.userAdd(message.from_user.username)
+        Main.users[str(message.from_user.username)][1] = True
         if Main.users[str(message.from_user.username)][0] == False:
             if Main.users[str(message.from_user.username)][1] == True:
                 orderCall.handleManualPhoneNumber(message)
@@ -129,13 +192,93 @@ class Main:
     def handleCallbackQuery(call):
         bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
         if call.data == 'leave_request':
-            Main.handleRequest(call.message)
+            Main.handleRequest(call.message, False)
         elif call.data == 'order_call':
             Main.handleOrderCall(call.message)
         elif call.data == 'information':
             messages.info(call.message)
             Main.userAdd(call.message.from_user.username)
             menu.showMainMenu(call.message)
+            
+        elif call.data == 'check_request':
+            requests = db.getNpRequests()
+            l = len(requests)
+            if l < 1:
+                bot.send_message(call.message.chat.id, "Нет свободных заявок")
+                menu.showAdminMenu(call.message)
+                return
+            for i in range(l):
+                bot.send_message(call.message.chat.id, "ID: " + str(requests[i][0]) + "\n" + "Имя: " + str(requests[i][1]) + "\n" + "Телефон: " + str(requests[i][3]) + "\n" + "Почта: " + str(requests[i][2]) + "\n" + "Тема: " + str(requests[i][4]) + "\n" + "Статус: " + str(requests[i][5]))
+            bot.send_message(call.message.chat.id, "Введите ID заявки для обработки:")
+            def ProcessRequest(message):
+                if message.content_type != 'text':
+                    menu.showAdminMenu(message)
+                    return
+                req = message.text
+                def FinishRequest(message, id):
+                    if message.content_type != 'text':
+                        db.cancelProcessRequest(id)
+                        bot.send_message(message.chat.id, "Обработка успешно отменена!")
+                        menu.showAdminMenu(message)
+                        return
+                    if message.text.lower() == "нет":
+                        db.cancelProcessRequest(id)
+                        bot.send_message(message.chat.id, "Обработка успешно отменена!")
+                        menu.showAdminMenu(message)
+                        return
+                    db.setFinishedRequest(id)
+                    bot.send_message(message.chat.id, "Заявка успешно обработана!")
+                    menu.showAdminMenu(message)
+                for i in requests:
+                    if req == str(i[0]):
+                        db.setProcessRequest(message.text, message.from_user.username)
+                        bot.send_message(message.chat.id, "Отправьте любое сообщение по завершению обработки (Нет - для отмены обработки):", reply_markup=menu.YNKeyboard)
+                        bot.register_next_step_handler(message, FinishRequest, req)
+                        return
+                bot.send_message(message.chat.id, "Нет такого свободного ID")
+                menu.showAdminMenu(message)
+                
+            bot.register_next_step_handler(call.message, ProcessRequest)
+            
+
+        elif call.data == 'check_call':
+            calls = db.getNpCalls()
+            l = len(calls)
+            if l < 1:
+                bot.send_message(call.message.chat.id, "Нет свободных заказов")
+                menu.showAdminMenu(call.message)
+                return
+            for i in range(l):
+                bot.send_message(call.message.chat.id, "ID: " + str(calls[i][0]) + "\n" + "Имя: " + str(calls[i][1]) + "\n" + "Телефон: " + str(calls[i][2]) + "\n" + "Статус: " + str(calls[i][3]))
+            bot.send_message(call.message.chat.id, "Введите ID заказа для обработки:")
+            def ProcessCall(message):
+                if message.content_type != 'text':
+                    menu.showAdminMenu(message)
+                    return
+                call = message.text
+                def FinishCall(message, id):
+                    if message.content_type != 'text':
+                        db.cancelProcessCall(id)
+                        bot.send_message(message.chat.id, "Обработка успешно отменена!")
+                        menu.showAdminMenu(message)
+                        return
+                    if message.text.lower() == "нет":
+                        db.cancelProcessCall(id)
+                        bot.send_message(message.chat.id, "Обработка успешно отменена!")
+                        menu.showAdminMenu(message)
+                        return
+                    db.setFinishedCall(id)
+                    bot.send_message(message.chat.id, "Заказ успешно обработан!")
+                    menu.showAdminMenu(message)
+                for i in calls:
+                    if call == str(i[0]):
+                        db.setProcessCall(message.text, message.from_user.username)
+                        bot.send_message(message.chat.id, "Отправьте любое сообщение по завершению обработки (Нет - для отмены обработки):", reply_markup=menu.YNKeyboard)
+                        bot.register_next_step_handler(message, FinishCall, call)
+                        return
+                bot.send_message(message.chat.id, "Нет такого свободного ID")
+                menu.showAdminMenu(message)
+            bot.register_next_step_handler(call.message, ProcessCall)
 
     @bot.message_handler(content_types = ['text'])
     def messaging(message):
@@ -155,8 +298,9 @@ class Main:
                 else:
                     messages.usr_msg(message)
         menu.showMainMenu(message)
-        
-request = Requests(bot, db, menu, Main)
+
+messages = Messages(bot, menu, Main)      
+request = Requests(bot, db, menu, Main, chatID)
 
 if __name__ == '__main__':
     print("[log] Запуск готов")

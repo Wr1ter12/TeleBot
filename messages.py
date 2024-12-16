@@ -33,11 +33,14 @@ helpMsg = """Бот ТДМ предоставляет возможность:
 /start - для начала работы с ботом
 /info - для получения информации о нас
 /help - для краткой информации о пользовании ботом
-/request - для оформления заявки"""
+/request - для оформления заявки
+/stop - для прекращения оформления заявки"""
 
 class Messages:
-    def __init__(self, bot):
+    def __init__(self, bot, menu, main):
         self.bot = bot
+        self.menu = menu
+        self.main = main
         
     def start(self, message):
         self.bot.send_message(message.chat.id, "Здравствуйте, бот готов к работе!")
@@ -51,6 +54,12 @@ class Messages:
 
     def help(self, message):
         self.bot.send_message(message.chat.id, helpMsg)
+
+    def admin(self, message):
+        if message.from_user.username in list(self.main.employees):
+            self.menu.showAdminMenu(message)
+        else:
+            self.bot.send_message(message.chat.id, "Отказано в доступе")
 
     def usr_msg(self, message):
         print("[log] Текстовое сообщение: " + message.text)
